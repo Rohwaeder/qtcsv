@@ -22,8 +22,8 @@ include(qtcsv.pri)
 
 # Uncomment this settings if you want to manually set destination directory for
 # compiled library
-#CONFIG(release, debug|release): DESTDIR = $$PWD
-#CONFIG(debug, debug|release): DESTDIR = $$PWD
+CONFIG(release, debug|release): DESTDIR = $$PWD/../build-qtcsv-Release
+CONFIG(debug, debug|release): DESTDIR = $$PWD/../build-qtcsv-Debug
 
 DISTFILES += \
     CMakeLists.txt
