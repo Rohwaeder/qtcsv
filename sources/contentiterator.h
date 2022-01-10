@@ -1,12 +1,11 @@
 #ifndef QTCSVCONTENTITERATOR_H
 #define QTCSVCONTENTITERATOR_H
 
-class QString;
-class QStringList;
+#include "include/qtcsv/abstractdata.h"
+#include <QList>
+#include <QString>
 
-namespace QtCSV
-{
-    class AbstractData;
+namespace QtCSV {
 
     // ContentIterator is a class that holds references to containers with
     // information. Its main purpose:
@@ -17,17 +16,27 @@ namespace QtCSV
     // You can use this class with csv-writer class. ContentIterator will join
     // elements of one row with separator symbol and then join rows with
     // new line symbol.
-    class ContentIterator
-    {
-    public:
-        explicit ContentIterator(const AbstractData& data,
-                                 const QString& separator,
-                                 const QString& textDelimiter,
-                                 const QStringList& header,
-                                 const QStringList& footer,
-                                 int chunkSize = 1000);
+    class ContentIterator {
+        const AbstractData& m_data;
+        const QString& m_separator;
+        const QString& m_textDelimiter;
+        const QList<QString>& m_header;
+        const QList<QString>& m_footer;
+        const qsizetype m_chunkSize;
+        qsizetype m_dataRow;
+        bool m_atEnd;
 
-        ~ContentIterator() {}
+        // Compose row string from values
+        QString composeRow(const QList<QString>& values) const;
+
+    public:
+        ContentIterator(
+            const AbstractData& data,
+            const QString& separator,
+            const QString& textDelimiter,
+            const QList<QString>& header,
+            const QList<QString>& footer,
+            qsizetype chunkSize = 1000);
 
         // Check if content contains information
         bool isEmpty() const;
@@ -35,20 +44,6 @@ namespace QtCSV
         bool hasNext() const;
         // Get next chunk of information
         QString getNext();
-
-    private:
-        // Compose row string from values
-        QString composeRow(const QStringList& values) const;
-
-    private:
-        const AbstractData& m_data;
-        const QString& m_separator;
-        const QString& m_textDelimiter;
-        const QStringList& m_header;
-        const QStringList& m_footer;
-        const int m_chunkSize;
-        int m_dataRow;
-        bool atEnd;
     };
 }
 

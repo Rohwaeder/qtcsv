@@ -1,16 +1,13 @@
 #include "include/qtcsv/writer.h"
-
-#include <limits>
-
-#include <QFile>
-#include <QDir>
-#include <QTextStream>
+#include "sources/contentiterator.h"
+#include "sources/filechecker.h"
 #include <QCoreApplication>
 #include <QDebug>
-
-#include "include/qtcsv/abstractdata.h"
-#include "sources/filechecker.h"
-#include "sources/contentiterator.h"
+#include <QDir>
+#include <QFile>
+#include <QRandomGenerator>
+#include <QTextStream>
+#include <limits>
 
 using namespace QtCSV;
 
@@ -19,36 +16,35 @@ using namespace QtCSV;
 // create object of class TempFileHandler, you must specify absolute path
 // to the (temp) file (as a string). When object will be about to destroy, it
 // will try to remove specified file.
-class TempFileHandler
-{
+class TempFileHandler {
+    QString m_filePath;
+
 public:
-    explicit TempFileHandler(const QString &filePath) : m_filePath(filePath) {}
-    ~TempFileHandler()
-    {
+    explicit TempFileHandler(const QString& filePath) : m_filePath(filePath) {}
+    ~TempFileHandler() {
         QFile::remove(m_filePath);
     }
-
-private:
-    QString m_filePath;
 };
 
-class WriterPrivate
-{
+class WriterPrivate {
 public:
     // Append information to the file
-    static bool appendToFile(const QString& filePath,
-                             ContentIterator& content,
-                             QTextCodec* codec);
+    static bool appendToFile(
+        const QString& filePath,
+        ContentIterator& content,
+        QStringConverter::Encoding codec);
 
     // Overwrite file with new information
-    static bool overwriteFile(const QString& filePath,
-                              ContentIterator& content,
-                              QTextCodec* codec);
+    static bool overwriteFile(
+        const QString& filePath,
+        ContentIterator& content,
+        QStringConverter::Encoding codec);
 
     // Write to IO Device
-    static bool writeToIODevice(QIODevice& ioDevice,
-                                ContentIterator& content,
-                                QTextCodec* codec);
+    static bool writeToIODevice(
+        QIODevice& ioDevice,
+        ContentIterator& content,
+        QStringConverter::Encoding codec);
 
     // Create unique name for the temporary file
     static QString getTempFileName();
@@ -61,25 +57,24 @@ public:
 // - codec - pointer to codec object that would be used for file writing
 // @output:
 // - bool - True if data was appended to the file, otherwise False
-bool WriterPrivate::appendToFile(const QString& filePath,
-                                 ContentIterator& content,
-                                 QTextCodec* codec)
+bool WriterPrivate::appendToFile(
+    const QString& filePath,
+    ContentIterator& content,
+    const QStringConverter::Encoding codec)
 {
-    if ( filePath.isEmpty() || content.isEmpty() )
-    {
+    if (filePath.isEmpty() || content.isEmpty()) {
         qDebug() << __FUNCTION__ << "Error - invalid arguments";
         return false;
     }
 
     QFile csvFile(filePath);
-    if ( false == csvFile.open(QIODevice::Append | QIODevice::Text) )
-    {
+    if (!csvFile.open(QIODevice::Append | QIODevice::Text)) {
         qDebug() << __FUNCTION__ << "Error - can't open file:" <<
-                    csvFile.fileName();
+            csvFile.fileName();
         return false;
     }
 
-    bool result = writeToIODevice(csvFile, content, codec);
+    const auto result = writeToIODevice(csvFile, content, codec);
     csvFile.close();
 
     return result;
@@ -92,40 +87,35 @@ bool WriterPrivate::appendToFile(const QString& filePath,
 // - codec - pointer to codec object that would be used for file writing
 // @output:
 // - bool - True if file was overwritten with new data, otherwise False
-bool WriterPrivate::overwriteFile(const QString& filePath,
-                                  ContentIterator& content,
-                                  QTextCodec* codec)
+bool WriterPrivate::overwriteFile(
+    const QString& filePath,
+    ContentIterator& content,
+    const QStringConverter::Encoding codec)
 {
     // Create path to the unique temporary file
-    QString tempFileName = getTempFileName();
-    if ( tempFileName.isEmpty() )
-    {
+    const auto tempFileName = getTempFileName();
+    if (tempFileName.isEmpty()) {
         qDebug() << __FUNCTION__ <<
-                    "Error - failed to create unique name for temp file";
+            "Error - failed to create unique name for temp file";
         return false;
     }
 
     TempFileHandler handler(tempFileName);
 
     // Write information to the temporary file
-    if ( false == appendToFile(tempFileName, content, codec) )
-    {
-        return false;
-    }
+    if (!appendToFile(tempFileName, content, codec)) { return false; }
 
     // Remove "old" file if it exists
-    if ( QFile::exists(filePath) && false == QFile::remove(filePath) )
-    {
+    if (QFile::exists(filePath) && !QFile::remove(filePath)) {
         qDebug() << __FUNCTION__ << "Error - failed to remove file" << filePath;
         return false;
     }
 
     // Copy "new" file (temporary file) to the destination path (replace
     // "old" file)
-    if ( false == QFile::copy(tempFileName, filePath))
-    {
+    if (!QFile::copy(tempFileName, filePath)) {
         qDebug() << __FUNCTION__ <<
-                    "Error - failed to copy temp file to" << filePath;
+            "Error - failed to copy temp file to" << filePath;
         return false;
     }
 
@@ -139,32 +129,29 @@ bool WriterPrivate::overwriteFile(const QString& filePath,
 // - codec - pointer to codec object that would be used for file writing
 // @output:
 // - bool - True if data could be written to the IO Device
-bool WriterPrivate::writeToIODevice(QIODevice& ioDevice,
-                                    ContentIterator& content,
-                                    QTextCodec* codec) {
-    if ( content.isEmpty() )
-    {
+bool WriterPrivate::writeToIODevice(
+    QIODevice& ioDevice,
+    ContentIterator& content,
+    const QStringConverter::Encoding codec)
+{
+    if (content.isEmpty()) {
         qDebug() << __FUNCTION__ << "Error - invalid arguments";
         return false;
     }
 
     // Open IO Device if it was not opened
-    if (false == ioDevice.isOpen() &&
-            false == ioDevice.open(QIODevice::Append | QIODevice::Text))
+    if (!ioDevice.isOpen() &&
+        !ioDevice.open(QIODevice::Append | QIODevice::Text))
     {
         qDebug() << __FUNCTION__ << "Error - failed to open IO Device";
         return false;
     }
 
     QTextStream stream(&ioDevice);
-    stream.setCodec(codec);
-    while( content.hasNext() )
-    {
-        stream << content.getNext();
-    }
+    stream.setEncoding(codec);
+    while (content.hasNext()) { stream << content.getNext(); }
 
     stream.flush();
-
     return stream.status() == QTextStream::Ok;
 }
 
@@ -175,16 +162,15 @@ bool WriterPrivate::writeToIODevice(QIODevice& ioDevice,
 // string.
 QString WriterPrivate::getTempFileName()
 {
-    QString nameTemplate = QDir::tempPath() + "/qtcsv_" +
-                QString::number(QCoreApplication::applicationPid()) + "_%1.csv";
+    const auto nameTemplate = QDir::tempPath() + "/qtcsv_" +
+        QString::number(QCoreApplication::applicationPid()) + "_%1.csv";
 
-    for (int counter = 0; counter < std::numeric_limits<int>::max(); ++counter)
+    for (auto counter = 0; counter < std::numeric_limits<int>::max(); ++counter)
     {
-        QString name = nameTemplate.arg(QString::number(qrand()));
-        if ( false == QFile::exists(name) )
-        {
-            return name;
-        }
+        QString name = nameTemplate.arg(
+            QString::number(QRandomGenerator::global()->generate()));
+
+        if (!QFile::exists(name)) { return name; }
     }
 
     return QString();
@@ -206,47 +192,43 @@ QString WriterPrivate::getTempFileName()
 // - codec - pointer to codec object that would be used for file writing
 // @output:
 // - bool - True if data was written to the file, otherwise False
-bool Writer::write(const QString& filePath,
-                   const AbstractData& data,
-                   const QString& separator,
-                   const QString& textDelimiter,
-                   const WriteMode& mode,
-                   const QStringList& header,
-                   const QStringList& footer,
-                   QTextCodec* codec)
+bool Writer::write(
+    const QString& filePath,
+    const AbstractData& data,
+    const QString& separator,
+    const QString& textDelimiter,
+    const WriteMode mode,
+    const QList<QString>& header,
+    const QList<QString>& footer,
+    const QStringConverter::Encoding codec)
 {
-    if ( filePath.isEmpty() )
-    {
+    if (filePath.isEmpty()) {
         qDebug() << __FUNCTION__ << "Error - empty path to file";
         return false;
     }
 
-    if ( data.isEmpty() )
-    {
+    if (data.isEmpty()) {
         qDebug() << __FUNCTION__ << "Error - empty data";
         return false;
     }
 
-    if ( false == CheckFile(filePath) )
-    {
+    if (false == CheckFile(filePath)) {
         qDebug() << __FUNCTION__ << "Error - wrong file path/name:" << filePath;
         return false;
     }
 
     ContentIterator content(data, separator, textDelimiter, header, footer);
-
-    bool result = false;
     switch (mode)
     {
-        case APPEND:
-            result = WriterPrivate::appendToFile(filePath, content, codec);
-            break;
-        case REWRITE:
-        default:
-            result = WriterPrivate::overwriteFile(filePath, content, codec);
+    case WriteMode::APPEND:
+        return WriterPrivate::appendToFile(filePath, content, codec);
+        break;
+    case WriteMode::REWRITE:
+    default:
+        return WriterPrivate::overwriteFile(filePath, content, codec);
     }
 
-    return result;
+    return false;
 }
 
 // Write data to IO Device
@@ -263,16 +245,16 @@ bool Writer::write(const QString& filePath,
 // - codec - pointer to codec object that would be used for data writing
 // @output:
 // - bool - True if data was written to the IO Device, otherwise False
-bool Writer::write(QIODevice& ioDevice,
-                   const AbstractData& data,
-                   const QString& separator,
-                   const QString& textDelimiter,
-                   const QStringList& header,
-                   const QStringList& footer,
-                   QTextCodec* codec)
+bool Writer::write(
+    QIODevice& ioDevice,
+    const AbstractData& data,
+    const QString& separator,
+    const QString& textDelimiter,
+    const QList<QString>& header,
+    const QList<QString>& footer,
+    const QStringConverter::Encoding codec)
 {
-    if ( data.isEmpty() )
-    {
+    if (data.isEmpty()) {
         qDebug() << __FUNCTION__ << "Error - empty data";
         return false;
     }

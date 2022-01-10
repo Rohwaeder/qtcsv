@@ -6,12 +6,11 @@
 
 #include "qtcsv/stringdata.h"
 
-class TestWriter : public QObject
-{
+class TestWriter : public QObject {
     Q_OBJECT
 
 public:
-    TestWriter();
+    TestWriter() = default;
 
 private Q_SLOTS:
     void cleanup();
@@ -32,8 +31,8 @@ private:
     QString getFilePath() const;
     QString getFilePathXLS() const;
     QString getFilePathWithDotsInName() const;
-    QtCSV::StringData getTestStringData(const int &symbolsInRow,
-                                        const int &rowsNumber);
+    QtCSV::StringData getTestStringData(
+        qsizetype symbolsInRow, qsizetype rowsNumber);
 };
 
 #endif // TESTWRITER_H
